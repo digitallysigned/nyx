@@ -22,6 +22,7 @@ pub fn all_commands() -> Vec<poise::Command<Data, Error>> {
         authenticate(),
         dispatch(),
         sync(),
+        update(),
     ]
 }
 
@@ -574,6 +575,70 @@ async fn sync(ctx: Context<'_>) -> Result<(), Error> {
         .args(["restart", "discordbot"])
         .status()
         .await?;
+
+    Ok(())
+}
+
+#[poise::command(slash_command, prefix_command, owners_only)]
+async fn update(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.defer().await?;
+
+    ctx.say("Starting system update...").await?;
+
+    let update = tokio::process::Command::new("sudo")  // needs changing if i decide migrating to alpine/debian
+        .args(["apt-get", "update"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .await?;
+
+    let update_stdout = String::from_utf8_lossy(&update.stdout);
+    let update_stderr = String::from_utf8_lossy(&update.stderr);
+
+    if !update.status.success() {
+        ctx.say(format!(
+            "**apt-get update failed**\n```text\n{}{}\n```",
+            update_stdout, update_stderr
+        ).chars().take(1900).collect::<String>()).await?;
+
+        return Ok(());
+    }
+
+    let upgrade = tokio::process::Command::new("sudo")
+        .args([
+            "apt-get",
+            "upgrade",
+            "-y",
+            "-o",
+            "Dpkg::Options::=--force-confdef",
+            "-o",
+            "Dpkg::Options::=--force-confold",
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .await?;
+
+    let upgrade_stdout = String::from_utf8_lossy(&upgrade.stdout);
+    let upgrade_stderr = String::from_utf8_lossy(&upgrade.stderr);
+
+    if !upgrade.status.success() {
+        ctx.say(format!(
+            "**apt-get upgrade failed**\n```text\n{}{}\n```",
+            upgrade_stdout, upgrade_stderr
+        ).chars().take(1900).collect::<String>()).await?;
+
+        return Ok(());
+    }
+
+    ctx.say("**System update successful. Rebooting VM...**").await?;
+
+    // delay for response
+    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+
+    tokio::process::Command::new("sudo")
+        .args(["systemctl", "reboot"])
+        .spawn()?;
 
     Ok(())
 }
