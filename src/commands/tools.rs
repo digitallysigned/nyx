@@ -6,6 +6,7 @@ use evalexpr::{eval_number_with_context, math_consts_context};
 pub fn all_commands() -> Vec<poise::Command<Data, Error>> {
     vec![
         inspectimage(),
+        expr(),
         // add more here
     ]
 }
