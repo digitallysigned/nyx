@@ -579,7 +579,7 @@ async fn sync(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(prefix_command, owners_only)]
+#[poise::command(slash_command, prefix_command, owners_only)]
 async fn update(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer().await?;
 
