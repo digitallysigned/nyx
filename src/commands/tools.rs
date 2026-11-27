@@ -1,7 +1,7 @@
 use crate::{serenity};
 pub(crate) use crate::types::{Context, Data, Error};
 use crate::tooling::image::{analyze, fetch};
-use evalexpr::{eval_number_with_context, math_consts_context};
+use evalexpr::{eval_number_with_context, math_consts_context, ContextWithMutableFunctions, ContextWithMutableVariables};
 
 pub fn all_commands() -> Vec<poise::Command<Data, Error>> {
     vec![
@@ -89,11 +89,11 @@ pub async fn expr(
     #[description = "Mathematical expression to evaluate"]
     expression: String,
 ) -> Result<(), Error> {
-    use evalexpr::{eval_number_with_context, math_consts_context, DefaultNumericTypes, HashMapContext};
+    use evalexpr::{eval_number_with_context, math_consts_context, DefaultNumericTypes, HashMapContext, Function, Value};
 
     ctx.defer().await?;
 
-    let context: HashMapContext<DefaultNumericTypes> = match math_consts_context!() {
+    let mut context: HashMapContext<DefaultNumericTypes> = match math_consts_context!() {
         Ok(context) => context,
         Err(error) => {
             ctx.send(poise::CreateReply::default()
@@ -103,6 +103,44 @@ pub async fn expr(
             return Ok(());
         }
     };
+
+    context.set_function(
+        "log".into(),
+        Function::new(|arg| -> Result<Value, evalexpr::EvalexprError> {
+            let value = arg.as_number()?;
+            Ok(Value::from_float(value.log10()))
+        }),
+    )?;
+
+    context.set_function(
+        "ln".into(),
+        Function::new(|arg| -> Result<Value, evalexpr::EvalexprError> {
+            let value = arg.as_number()?;
+            Ok(Value::from_float(value.ln()))
+        }),
+    )?;
+    context.set_function(
+        "logn".into(),
+        Function::new(|arg| -> Result<Value, evalexpr::EvalexprError> {
+            let args = arg.as_tuple()?;
+            if args.len() != 2 {
+                return Err(evalexpr::EvalexprError::wrong_function_argument_amount(
+                    2, args.len()
+                ));
+            }
+
+            let value = args[0].as_number()?;
+            let base = args[1].as_number()?;
+
+            Ok(Value::from_float(value.log(base)))
+        }),
+    )?;
+
+    context.set_value("e".into(), Value::from_float(std::f64::consts::E))?;
+    context.set_value("pi".into(), Value::from_float(std::f64::consts::PI))?;
+    context.set_value("tau".into(), Value::from_float(std::f64::consts::TAU))?;
+    context.set_value("phi".into(), Value::from_float(1.618033988749895))?;
+    context.set_value("sqrt2".into(), Value::from_float(std::f64::consts::SQRT_2))?;
 
     let result: Result<f64, _> = eval_number_with_context(&expression, &context);
 
