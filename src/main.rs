@@ -5,6 +5,11 @@ use std::sync::Arc;
 use std::time::Instant;
 use poise::futures_util::lock::Mutex;
 use serenity::all::{FullEvent, UserId};
+use serenity::all::{
+    Command,
+    InstallationContext,
+    InteractionContext,
+};
 
 mod commands;
 mod helpers;
@@ -191,7 +196,26 @@ async fn main() -> Result<(), Error> {
 
 
             Box::pin(async move {
-                poise::builtins::register_globally(_ctx, &_framework.options().commands).await?;
+                let commands = poise::builtins::create_application_commands(
+                    &_framework.options().commands
+                );
+
+                let commands = commands.into_iter()
+                    .map(|command| {
+                        command
+                            .integration_types(vec![
+                                serenity::all::InstallationContext::Guild,
+                                serenity::all::InstallationContext::User,
+                            ])
+                            .contexts(vec![
+                                serenity::all::InteractionContext::Guild,
+                                serenity::all::InteractionContext::BotDm,
+                                serenity::all::InteractionContext::PrivateChannel,
+                            ])
+                    })
+                    .collect::<Vec<_>>();
+
+                serenity::all::Command::set_global_commands(&_ctx.http, commands).await?;
                 let shard_manager = loop {
                     if let Some(sm) = shard_manager_holder.lock().await.clone() {
                         break sm;
