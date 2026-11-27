@@ -7,6 +7,7 @@ name = "Nyx"
 version = "1.0.0"
 dependencies = [
  "chrono",
+ "evalexpr",
  "hex_color",
  "image",
  "kamadak-exif",
@@ -741,6 +742,12 @@ dependencies = [
  "home",
  "windows-sys 0.48.0",
 ]
+
+[[package]]
+name = "evalexpr"
+version = "14.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29260bf8607ccb1de1c42ceecca968ea467a6f43e06e61c2759b4b80c580f3c9"
 
 [[package]]
 name = "event-listener"

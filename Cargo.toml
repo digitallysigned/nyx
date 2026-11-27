@@ -20,3 +20,4 @@ kamadak-exif = "0.6"
 reqwest = { version = "0.13", features = ["rustls", "json"] }
 image = "0.25.10"
 url = "2.5.8"
+evalexpr = "14.0.0"

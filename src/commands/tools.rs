@@ -1,10 +1,7 @@
 use crate::{serenity};
 pub(crate) use crate::types::{Context, Data, Error};
-use exif::{In, Reader, Tag};
-use reqwest::{get};
-use crate::commands::fun::{rcstatus, rolecolours, roleset};
 use crate::tooling::image::{analyze, fetch};
-use crate::tooling::image::fetch::FetchError;
+use evalexpr::{eval_number_with_context, math_consts_context};
 
 pub fn all_commands() -> Vec<poise::Command<Data, Error>> {
     vec![
@@ -85,6 +82,54 @@ pub async fn inspectimage(
 }
 
 
+#[poise::command(slash_command)]
+pub async fn expr(
+    ctx: Context<'_>,
+    #[description = "Mathematical expression to evaluate"]
+    expression: String,
+) -> Result<(), Error> {
+    use evalexpr::{eval_number_with_context, math_consts_context, DefaultNumericTypes, HashMapContext};
+
+    ctx.defer().await?;
+
+    let context: HashMapContext<DefaultNumericTypes> = match math_consts_context!() {
+        Ok(context) => context,
+        Err(error) => {
+            ctx.send(poise::CreateReply::default()
+                .content(format!("Failed to initialise calculator: `{}`", error))
+            ).await?;
+
+            return Ok(());
+        }
+    };
+
+    let result: Result<f64, _> = eval_number_with_context(&expression, &context);
+
+    let result = match result {
+        Ok(result) => result,
+        Err(error) => {
+            ctx.send(poise::CreateReply::default()
+                .content(format!("Invalid expression: `{}`", error))
+            ).await?;
+
+            return Ok(());
+        }
+    };
+
+    if !result.is_finite() {
+        ctx.send(poise::CreateReply::default()
+            .content("Expression produced an invalid result (NaN or infinity)")
+        ).await?;
+
+        return Ok(());
+    }
+
+    ctx.send(poise::CreateReply::default()
+        .content(format!("`{}` = `{}`", expression, result))
+    ).await?;
+
+    Ok(())
+}
 
 
 
